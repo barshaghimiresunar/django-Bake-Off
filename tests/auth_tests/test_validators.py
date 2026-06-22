@@ -402,3 +402,22 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_unicode_validator_rejects_crlf_and_embedded_newline(self):
+        v = validators.UnicodeUsernameValidator()
+        for invalid in ["user\r\n", "us\ner"]:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator_rejects_crlf_and_embedded_newline(self):
+        v = validators.ASCIIUsernameValidator()
+        for invalid in ["user\r\n", "us\ner"]:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_valid_punctuation_usernames_still_accepted(self):
+        username = "user.name+ok-OK@ok"
+        validators.UnicodeUsernameValidator()(username)
+        validators.ASCIIUsernameValidator()(username)
