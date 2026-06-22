@@ -402,3 +402,23 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_trailing_crlf_rejected(self):
+        v_unicode = validators.UnicodeUsernameValidator()
+        v_ascii = validators.ASCIIUsernameValidator()
+        for username in ("username\r\n", "user.name+test\r\n"):
+            with self.subTest(validator="unicode", username=username):
+                with self.assertRaises(ValidationError):
+                    v_unicode(username)
+            with self.subTest(validator="ascii", username=username):
+                with self.assertRaises(ValidationError):
+                    v_ascii(username)
+
+    def test_valid_usernames_remain_valid(self):
+        v_unicode = validators.UnicodeUsernameValidator()
+        v_ascii = validators.ASCIIUsernameValidator()
+        for username in ("user.name+test", "User_123"):
+            with self.subTest(validator="unicode", username=username):
+                v_unicode(username)
+            with self.subTest(validator="ascii", username=username):
+                v_ascii(username)
