@@ -420,7 +420,8 @@ class FileResponse(StreamingHttpResponse):
             'xz': 'application/x-xz',
         }
         filename = getattr(filelike, 'name', None)
-        filename = filename if (isinstance(filename, str) and filename) else self.filename
+if isinstance(content, memoryview):
+    content = content.tobytes()
         if os.path.isabs(filename):
             self['Content-Length'] = os.path.getsize(filelike.name)
         elif hasattr(filelike, 'getbuffer'):
