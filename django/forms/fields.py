@@ -567,7 +567,7 @@ class DateTimeField(BaseTemporalField):
 
 class DurationField(Field):
     default_error_messages = {
-        "invalid": _("Enter a valid duration."),
+        "invalid": _("Enter a valid duration (e.g. [DD] [[HH:]MM:]ss[.uuuuuu])."),
         "overflow": _("The number of days must be between {min_days} and {max_days}."),
     }
 
