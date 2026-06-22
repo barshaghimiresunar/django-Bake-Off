@@ -873,3 +873,42 @@ class FastDeleteTests(TestCase):
         with self.assertNumQueries(1):
             User.objects.filter(~Q(pk__in=[]) | Q(avatar__desc="foo")).delete()
         self.assertFalse(User.objects.exists())
+
+    def test_fast_delete_single_instance_clears_pk_no_dependencies(self):
+        """
+        Deleting a single instance of a model with no dependencies should
+        clear the in-memory PK (fast-delete single-instance path).
+        """
+        b = Base.objects.create()
+        deleted, deleted_objs = b.delete()
+        self.assertEqual(deleted, 1)
+        self.assertEqual(deleted_objs, {Base._meta.label: 1})
+        self.assertIsNone(b.pk)
+        self.assertFalse(Base.objects.exists())
+
+    def test_model_delete_with_signals_clears_pk_even_without_dependencies(self):
+        """
+        When delete signals are connected (disabling fast-delete), deleting a
+        single instance of a model with no dependencies should still clear its
+        in-memory PK and fire signals exactly once.
+        """
+        calls = {"pre": 0, "post": 0}
+
+        def pre_delete(sender, **kwargs):
+            calls["pre"] += 1
+
+        def post_delete(sender, **kwargs):
+            calls["post"] += 1
+
+        b = Base.objects.create()
+        try:
+            models.signals.pre_delete.connect(pre_delete, sender=Base)
+            models.signals.post_delete.connect(post_delete, sender=Base)
+            b.delete()
+        finally:
+            models.signals.pre_delete.disconnect(pre_delete, sender=Base)
+            models.signals.post_delete.disconnect(post_delete, sender=Base)
+
+        self.assertEqual(calls["pre"], 1)
+        self.assertEqual(calls["post"], 1)
+        self.assertIsNone(b.pk)
