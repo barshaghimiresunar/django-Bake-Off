@@ -317,6 +317,9 @@ class HttpResponse(HttpResponseBase):
                 except Exception:
                     pass
         else:
+            if isinstance(value, memoryview):
+            content = value.tobytes()
+        else:
             content = self.make_bytes(value)
         # Create a list of properly encoded bytestrings to support write().
         self._container = [content]
