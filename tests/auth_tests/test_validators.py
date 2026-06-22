@@ -402,3 +402,31 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_trailing_crlf_rejected(self):
+        for v in (
+            validators.ASCIIUsernameValidator(),
+            validators.UnicodeUsernameValidator(),
+        ):
+            with self.subTest(validator=v.__class__.__name__):
+                with self.assertRaises(ValidationError):
+                    v("user\r\n")
+
+    def test_embedded_newline_rejected(self):
+        for v in (
+            validators.ASCIIUsernameValidator(),
+            validators.UnicodeUsernameValidator(),
+        ):
+            with self.subTest(validator=v.__class__.__name__):
+                with self.assertRaises(ValidationError):
+                    v("user\nname")
+
+    def test_valid_usernames_with_punctuation(self):
+        valid_usernames = ["user", "user.name", "user-name", "user+name"]
+        for v in (
+            validators.ASCIIUsernameValidator(),
+            validators.UnicodeUsernameValidator(),
+        ):
+            for name in valid_usernames:
+                with self.subTest(validator=v.__class__.__name__, name=name):
+                    v(name)
