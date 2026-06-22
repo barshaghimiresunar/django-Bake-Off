@@ -303,7 +303,9 @@ class HttpResponse(HttpResponseBase):
     __bytes__ = serialize
 
     @property
-    def content(self):
+if isinstance(value, memoryview):
+            content = bytes(value)
+        else:
         return b''.join(self._container)
 
     @content.setter
