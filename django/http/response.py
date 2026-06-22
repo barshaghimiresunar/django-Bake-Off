@@ -233,6 +233,9 @@ class HttpResponseBase:
             return bytes(value)
         if isinstance(value, str):
             return bytes(value.encode(self.charset))
+        # Handle memoryview by converting directly to bytes.
+        if isinstance(value, memoryview):
+            return bytes(value)
         # Handle non-string types.
         return str(value).encode(self.charset)
 
