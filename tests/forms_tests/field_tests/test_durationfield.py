@@ -76,3 +76,23 @@ class DurationFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
         self.assertEqual(field.prepare_value(td), duration_string(td))
         self.assertEqual(field.prepare_value("arbitrary"), "arbitrary")
         self.assertIsNone(field.prepare_value(None))
+
+
+class DurationFieldMessageFormatTests(SimpleTestCase):
+    def test_invalid_message_shows_expected_format(self):
+        f = DurationField()
+        msg = "Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu]."
+        with self.assertRaisesMessage(ValidationError, msg):
+            f.clean("14:")  # Missing mandatory seconds.
+
+    def test_valid_examples_from_spec(self):
+        f = DurationField()
+        # "14:00" -> 14 minutes, 0 seconds
+        self.assertEqual(f.clean("14:00"), datetime.timedelta(minutes=14))
+        # "62" -> 62 seconds
+        self.assertEqual(f.clean("62"), datetime.timedelta(seconds=62))
+        # "3 1:02:03" -> 3 days, 1 hour, 2 minutes, 3 seconds
+        self.assertEqual(
+            f.clean("3 1:02:03"),
+            datetime.timedelta(days=3, hours=1, minutes=2, seconds=3),
+        )
