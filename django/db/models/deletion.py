@@ -16,9 +16,15 @@ def CASCADE(collector, field, sub_objs, using):
     collector.collect(sub_objs, source=field.remote_field.model,
                       source_attr=field.name, nullable=field.null)
     if field.null and not connections[using].features.can_defer_constraint_checks:
+def CASCADE(collector, field, sub_objs, using):
+    collector.collect(sub_objs, source=field.remote_field.model,
+                      source_attr=field.name, nullable=field.null)
+    if field.null and not connections[using].features.can_defer_constraint_checks:
         collector.add_field_update(field, None, sub_objs)
-
-
+    if field.remote_field.on_delete == CASCADE:
+        collector.add_related_objects(field, sub_objs, self.using)
+    if field.null and not connections[using].features.can_defer_constraint_checks:
+        collector.add_field_update(field, None, sub_objs)
 def PROTECT(collector, field, sub_objs, using):
     raise ProtectedError(
         "Cannot delete some instances of model '%s' because they are "
