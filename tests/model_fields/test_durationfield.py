@@ -72,6 +72,8 @@ class TestValidation(SimpleTestCase):
         with self.assertRaises(exceptions.ValidationError) as cm:
             field.clean('not a datetime', None)
         self.assertEqual(cm.exception.code, 'invalid')
+        # Corrected format: [[HH:]MM:]ss reflects that seconds are mandatory,
+        # minutes optional, and hours only valid when minutes are present.
         self.assertEqual(
             cm.exception.message % cm.exception.params,
             "'not a datetime' value has an invalid format. "
