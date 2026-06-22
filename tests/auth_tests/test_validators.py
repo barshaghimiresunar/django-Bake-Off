@@ -402,3 +402,28 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_unicode_validator_rejects_crlf_and_embedded_newlines(self):
+        v = validators.UnicodeUsernameValidator()
+        for invalid in ["username\r\n", "user\nname", "user\r\nname"]:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator_rejects_crlf_and_embedded_newlines(self):
+        v = validators.ASCIIUsernameValidator()
+        for invalid in ["username\r\n", "user\nname", "user\r\nname"]:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_valid_usernames_without_newlines_still_accepted(self):
+        valid_usernames = [
+            "user.name+1-2@domain",
+            "USER_name-123@example",
+        ]
+        for validator_cls in (validators.UnicodeUsernameValidator, validators.ASCIIUsernameValidator):
+            v = validator_cls()
+            for valid in valid_usernames:
+                with self.subTest(validator=v.__class__.__name__, valid=valid):
+                    v(valid)
