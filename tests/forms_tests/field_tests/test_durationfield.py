@@ -117,3 +117,21 @@ class DurationFieldAdditionalFormatTests(SimpleTestCase):
             f.clean("00:00:01.123456"),
             datetime.timedelta(seconds=1, microseconds=123456),
         )
+
+
+class DurationFieldHelpTextTests(SimpleTestCase):
+    def test_default_help_text_is_set(self):
+        f = DurationField()
+        self.assertEqual(f.help_text, "Format: [DD] [[HH:]MM:]ss[.uuuuuu]")
+
+    def test_custom_help_text_overrides_default(self):
+        f = DurationField(help_text="Custom help")
+        self.assertEqual(f.help_text, "Custom help")
+
+
+class DurationFieldInvalidMessageFormatTests(SimpleTestCase):
+    def test_invalid_message_contains_expected_format(self):
+        f = DurationField()
+        with self.assertRaises(ValidationError) as cm:
+            f.clean("1:")  # Missing mandatory seconds.
+        self.assertIn("[DD] [[HH:]MM:]ss[.uuuuuu]", str(cm.exception))

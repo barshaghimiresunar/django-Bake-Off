@@ -78,6 +78,14 @@ class TestValidation(SimpleTestCase):
             "It must be in [DD] [[HH:]MM:]ss[.uuuuuu] format.",
         )
 
+    def test_invalid_message_includes_expected_format_examples(self):
+        field = models.DurationField()
+        for invalid in ["14", "14:", "1:2:3:4"]:
+            with self.assertRaises(exceptions.ValidationError) as cm:
+                field.clean(invalid, None)
+            self.assertEqual(cm.exception.code, "invalid")
+            self.assertIn("[DD] [[HH:]MM:]ss[.uuuuuu]", cm.exception.message % cm.exception.params)
+
 
 class TestFormField(SimpleTestCase):
     # Tests for forms.DurationField are in the forms_tests app.
