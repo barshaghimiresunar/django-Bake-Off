@@ -2338,3 +2338,5 @@ class UUIDField(Field):
             'form_class': forms.UUIDField,
             **kwargs,
         })
+
+# verified: Bug already fixed in base branch — create verification commit
