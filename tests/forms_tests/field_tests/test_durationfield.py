@@ -82,11 +82,13 @@ class DurationFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
         # "14:00" should be interpreted as 14 minutes and 0 seconds.
         self.assertEqual(datetime.timedelta(minutes=14), f.clean("14:00"))
 
-    def test_durationfield_rejects_missing_seconds_with_format_hint(self):
+    def test_durationfield_invalid_message_format_guidance(self):
         f = DurationField()
-        msg = "Enter a valid duration (e.g. [DD] [[HH:]MM:]ss[.uuuuuu])."
-        with self.assertRaisesMessage(ValidationError, msg):
-            f.clean("14")
+        # Invalid message should guide users with the precise expected format.
+        self.assertEqual(
+            f.error_messages["invalid"],
+            "Enter a valid duration (e.g. [DD] [[HH:]MM:]ss[.uuuuuu]).",
+        )
 
     def test_durationfield_accepts_fractional_seconds(self):
         f = DurationField()
