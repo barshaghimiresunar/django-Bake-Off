@@ -42,17 +42,33 @@ def update_proxy_model_permissions(apps, schema_editor, reverse=False):
         )
         old_content_type = proxy_content_type if reverse else concrete_content_type
         new_content_type = concrete_content_type if reverse else proxy_content_type
-        try:
-            with transaction.atomic(using=alias):
+        with transaction.atomic(using=alias):
+            perms_qs = Permission.objects.using(alias).filter(
+                permissions_query,
+                content_type=old_content_type,
+            )
+            if not perms_qs.exists():
+                continue
+            # Detect conflicts that already exist at the target content type.
+            codenames_to_move = list(perms_qs.values_list("codename", flat=True))
+            existing_codenames_at_new = set(
+                Permission.objects.using(alias)
+                .filter(content_type=new_content_type, codename__in=codenames_to_move)
+                .values_list("codename", flat=True)
+            )
+            if existing_codenames_at_new:
+                # Remove duplicates at the old content type to avoid unique conflicts.
                 Permission.objects.using(alias).filter(
                     permissions_query,
                     content_type=old_content_type,
-                ).update(content_type=new_content_type)
-        except IntegrityError:
-            old = "{}_{}".format(old_content_type.app_label, old_content_type.model)
-            new = "{}_{}".format(new_content_type.app_label, new_content_type.model)
-            sys.stdout.write(
-                style.WARNING(WARNING.format(old=old, new=new, query=permissions_query))
+                    codename__in=existing_codenames_at_new,
+                ).delete()
+            # Move the remaining permissions.
+            Permission.objects.using(alias).filter(
+                permissions_query,
+                content_type=old_content_type,
+            ).exclude(codename__in=existing_codenames_at_new).update(
+                content_type=new_content_type
             )
 
 

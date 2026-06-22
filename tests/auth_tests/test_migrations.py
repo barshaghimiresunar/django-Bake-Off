@@ -353,3 +353,171 @@ class ProxyModelDuplicatePermissionsIdempotencyTests(TransactionTestCase):
                 ).count(),
                 0,
             )
+
+
+class ProxyModelDuplicatePermissionsPartialAndReverseTests(TransactionTestCase):
+    available_apps = [
+        "auth_tests",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+    ]
+
+    def test_partial_existing_target_permissions(self):
+        """
+        If only a subset of target proxy permissions already exist, the
+        migration should delete duplicates at the old content type and move the
+        remainder, remaining idempotent across multiple runs.
+        """
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        Permission.objects.all().delete()
+
+        proxy_ct = ContentType.objects.get_for_model(Proxy, for_concrete_model=False)
+        concrete_ct = ContentType.objects.get_for_model(Proxy)
+
+        # Pre-create one target (proxy) permission and both historical
+        # (concrete) permissions.
+        Permission.objects.create(
+            content_type=proxy_ct,
+            codename="add_proxy",
+            name="Can add proxy",
+        )
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="add_proxy",
+            name="Can add proxy",
+        )
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="display_proxys",
+            name="May display proxys information",
+        )
+
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+
+        # Expect a single target permission per codename, none left at old CT.
+        self.assertEqual(
+            Permission.objects.filter(
+                content_type=proxy_ct, codename="add_proxy"
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Permission.objects.filter(
+                content_type=proxy_ct, codename="display_proxys"
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Permission.objects.filter(
+                content_type=concrete_ct, codename="add_proxy"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            Permission.objects.filter(
+                content_type=concrete_ct, codename="display_proxys"
+            ).count(),
+            0,
+        )
+
+    def test_revert_idempotent_with_existing_target_permissions(self):
+        """
+        The reverse migration is also idempotent and removes any duplicates at
+        the proxy ContentType when concrete-target rows already exist.
+        """
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        Permission.objects.all().delete()
+
+        proxy_ct = ContentType.objects.get_for_model(Proxy, for_concrete_model=False)
+        concrete_ct = ContentType.objects.get_for_model(Proxy)
+
+        # Pre-create target (concrete) permissions and duplicates at proxy.
+        for ct in (concrete_ct, proxy_ct):
+            Permission.objects.create(
+                content_type=ct,
+                codename="add_proxy",
+                name="Can add proxy",
+            )
+            Permission.objects.create(
+                content_type=ct,
+                codename="display_proxys",
+                name="May display proxys information",
+            )
+
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.revert_proxy_model_permissions(apps, editor)
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.revert_proxy_model_permissions(apps, editor)
+
+        for codename in ["add_proxy", "display_proxys"]:
+            self.assertEqual(
+                Permission.objects.filter(
+                    content_type=concrete_ct, codename=codename
+                ).count(),
+                1,
+            )
+            self.assertEqual(
+                Permission.objects.filter(
+                    content_type=proxy_ct, codename=codename
+                ).count(),
+                0,
+            )
+
+
+class MultiDBProxyModelDuplicateIdempotencyTests(TransactionTestCase):
+    databases = {"default", "other"}
+    available_apps = [
+        "auth_tests",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+    ]
+
+    def test_migrate_other_database_idempotent_with_existing_target(self):
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        Permission.objects.using("other").delete()
+
+        proxy_ct = ContentType.objects.db_manager("other").get_for_model(
+            Proxy, for_concrete_model=False
+        )
+        concrete_ct = ContentType.objects.db_manager("other").get_for_model(Proxy)
+
+        # Pre-create target (proxy) and historical (concrete) permissions.
+        for ct in (proxy_ct, concrete_ct):
+            Permission.objects.using("other").create(
+                content_type=ct,
+                codename="add_proxy",
+                name="Can add proxy",
+            )
+            Permission.objects.using("other").create(
+                content_type=ct,
+                codename="display_proxys",
+                name="May display proxys information",
+            )
+
+        with connections["other"].schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+        with connections["other"].schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+
+        for codename in ["add_proxy", "display_proxys"]:
+            self.assertEqual(
+                Permission.objects.using("other").filter(
+                    content_type=proxy_ct, codename=codename
+                ).count(),
+                1,
+            )
+            self.assertEqual(
+                Permission.objects.using("other").filter(
+                    content_type=concrete_ct, codename=codename
+                ).count(),
+                0,
+            )
