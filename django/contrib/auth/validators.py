@@ -3,9 +3,7 @@ import re
 from django.core import validators
 from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
-
-
-@deconstructible
+regex = r'\\A[\\w.@+-]+\\Z'
 class ASCIIUsernameValidator(validators.RegexValidator):
     regex = r'^[\w.@+-]+$'
     message = _(
