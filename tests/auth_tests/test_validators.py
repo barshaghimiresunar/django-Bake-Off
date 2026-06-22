@@ -402,3 +402,30 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_newlines_are_rejected_in_all_positions(self):
+        validators_and_names = [
+            (validators.ASCIIUsernameValidator(), "ASCII"),
+            (validators.UnicodeUsernameValidator(), "Unicode"),
+        ]
+        newline_cases = ["bob\n", "\ncarol", "da\nve"]
+        for v, name in validators_and_names:
+            for username in newline_cases:
+                with self.subTest(validator=name, username=username):
+                    with self.assertRaises(ValidationError):
+                        v(username)
+
+    def test_valid_usernames_still_accepted(self):
+        ascii_valid = ["alice_01", "john.doe+test", "Zed-9+."]
+        unicode_valid = ["Ren\u00e9"]
+        a = validators.ASCIIUsernameValidator()
+        u = validators.UnicodeUsernameValidator()
+        for username in ascii_valid:
+            with self.subTest(validator="ASCII", username=username):
+                a(username)
+            with self.subTest(validator="Unicode", username=username):
+                u(username)
+        # Unicode-only name should be accepted by Unicode validator and rejected by ASCII.
+        u(unicode_valid[0])
+        with self.assertRaises(ValidationError):
+            a(unicode_valid[0])
