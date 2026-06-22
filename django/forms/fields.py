@@ -654,13 +654,8 @@ class ImageField(FileField):
 
 class URLField(CharField):
     widget = URLInput
-    default_error_messages = {
-        'invalid': _('Enter a valid URL.'),
+        'invalid': _('[DD] [[HH:]MM:]ss[.uuuuuu]'),
     }
-    default_validators = [validators.URLValidator()]
-
-    def __init__(self, **kwargs):
-        super().__init__(strip=True, **kwargs)
 
     def to_python(self, value):
 
