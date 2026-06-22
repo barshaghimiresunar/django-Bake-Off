@@ -402,3 +402,42 @@ class UsernameValidatorsTests(SimpleTestCase):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(ValidationError):
                     v(invalid)
+
+    def test_unicode_validator_rejects_cr_lf_and_line_separators(self):
+        v = validators.UnicodeUsernameValidator()
+        invalid_usernames = [
+            "user\r",
+            "user\r\n",
+            "al\nice",
+            "carol\u2028",
+            "dave\u2029",
+        ]
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_ascii_validator_rejects_cr_lf_and_embedded_newline(self):
+        v = validators.ASCIIUsernameValidator()
+        invalid_usernames = [
+            "user\r",
+            "user\r\n",
+            "al\nice",
+        ]
+        for invalid in invalid_usernames:
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValidationError):
+                    v(invalid)
+
+    def test_valid_usernames_without_newlines_still_pass(self):
+        v_ascii = validators.ASCIIUsernameValidator()
+        v_unicode = validators.UnicodeUsernameValidator()
+        ascii_valid = ["alice", "bob.smith", "carol+dev"]
+        unicode_valid = ["\u30e6\u30fc\u30b6\u30fc\u540d"]
+
+        for name in ascii_valid:
+            with self.subTest(name=name):
+                v_ascii(name)
+        for name in unicode_valid:
+            with self.subTest(name=name):
+                v_unicode(name)
