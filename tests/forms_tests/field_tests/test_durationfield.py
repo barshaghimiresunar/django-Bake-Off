@@ -76,3 +76,21 @@ class DurationFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
         self.assertEqual(field.prepare_value(td), duration_string(td))
         self.assertEqual(field.prepare_value("arbitrary"), "arbitrary")
         self.assertIsNone(field.prepare_value(None))
+
+    def test_durationfield_parses_minutes_and_seconds(self):
+        f = DurationField()
+        # "14:00" should be interpreted as 14 minutes and 0 seconds.
+        self.assertEqual(datetime.timedelta(minutes=14), f.clean("14:00"))
+
+    def test_durationfield_rejects_missing_seconds_with_format_hint(self):
+        f = DurationField()
+        msg = "Enter a valid duration (e.g. [DD] [[HH:]MM:]ss[.uuuuuu])."
+        with self.assertRaisesMessage(ValidationError, msg):
+            f.clean("14")
+
+    def test_durationfield_accepts_fractional_seconds(self):
+        f = DurationField()
+        self.assertEqual(
+            datetime.timedelta(seconds=5, microseconds=123456),
+            f.clean("00:00:05.123456"),
+        )
