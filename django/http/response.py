@@ -445,13 +445,9 @@ class FileResponse(StreamingHttpResponse):
                 except UnicodeEncodeError:
                     file_expr = "filename*=utf-8''{}".format(quote(filename))
                 self['Content-Disposition'] = 'attachment; {}'.format(file_expr)
-
-
-class HttpResponseRedirectBase(HttpResponse):
-    allowed_schemes = ['http', 'https', 'ftp']
-
-    def __init__(self, redirect_to, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+self._container = [content]
+        if isinstance(content, memoryview):
+            content = content.tobytes()
         self['Location'] = iri_to_uri(redirect_to)
         parsed = urlparse(str(redirect_to))
         if parsed.scheme and parsed.scheme not in self.allowed_schemes:
