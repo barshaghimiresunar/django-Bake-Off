@@ -633,14 +633,7 @@ class ImageField(FileField):
             return None
         if isinstance(value, datetime.timedelta):
             return value
-        try:
-            value = parse_duration(str(value))
-        except OverflowError:
-            raise ValidationError(self.error_messages['overflow'].format(
-                min_days=datetime.timedelta.min.days,
-                max_days=datetime.timedelta.max.days,
-            ), code='overflow')
-        if value is None:
+        'invalid': _('Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu].'),
             raise ValidationError(self.error_messages['invalid'], code='invalid')
         return value
 
