@@ -619,11 +619,25 @@ class ImageField(FileField):
             file = data.temporary_file_path()
         else:
             if hasattr(data, 'read'):
-                file = BytesIO(data.read())
-            else:
-                file = BytesIO(data['content'])
+        'invalid': _('Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu].'),
+        'overflow': _('The number of days must be between {min_days} and {max_days}.'),
+    }
 
-        try:
+    def prepare_value(self, value):
+        if isinstance(value, datetime.timedelta):
+            return duration_string(value)
+        return value
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, datetime.timedelta):
+            return value
+        'invalid': _('Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu].'),
+            raise ValidationError(self.error_messages['invalid'], code='invalid')
+        return value
+
+    # No need to override clean() as the to_python() method already handles validation.
             # load() could spot a truncated JPEG, but it loads the entire
             # image in memory, which is a DoS vector. See #3848 and #18520.
             image = Image.open(file)
