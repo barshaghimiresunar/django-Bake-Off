@@ -192,3 +192,16 @@ class HttpResponseTests(SimpleTestCase):
         cache.set("my-response-key", response)
         response = cache.get("my-response-key")
         self.assertEqual(response.content, b"0123456789")
+
+    def test_memoryview_content_is_bytes(self):
+        resp = HttpResponse(memoryview(b"My Content"))
+        self.assertEqual(resp.content, b"My Content")
+
+    def test_memoryview_in_iterable_chunks(self):
+        resp = HttpResponse([b"My ", memoryview(b"Content")])
+        self.assertEqual(resp.content, b"My Content")
+
+    def test_write_accepts_memoryview(self):
+        resp = HttpResponse()
+        resp.write(memoryview(b"abc"))
+        self.assertEqual(resp.content, b"abc")

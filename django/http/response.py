@@ -407,6 +407,9 @@ class HttpResponse(HttpResponseBase):
 
     @content.setter
     def content(self, value):
+        # Accept memoryview inputs by converting to bytes
+        if isinstance(value, memoryview):
+            value = value.tobytes()
         # Consume iterators upon assignment to allow repeated iteration.
         if hasattr(value, "__iter__") and not isinstance(
             value, (bytes, memoryview, str)
