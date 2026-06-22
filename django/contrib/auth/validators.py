@@ -14,9 +14,7 @@ class ASCIIUsernameValidator(validators.RegexValidator):
     )
     flags = re.ASCII
 
-
-@deconstructible
-class UnicodeUsernameValidator(validators.RegexValidator):
+regex = r'\\A[\\w.@+-]+\\Z'
     regex = r'^[\w.@+-]+$'
     message = _(
         'Enter a valid username. This value may contain only letters, '
