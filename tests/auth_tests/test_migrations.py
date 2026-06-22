@@ -243,3 +243,113 @@ class MultiDBProxyModelAppLabelTests(TransactionTestCase):
             update_proxy_permissions.update_proxy_model_permissions(apps, editor)
         self.permission.refresh_from_db()
         self.assertEqual(self.permission.content_type, proxy_model_content_type)
+
+
+class ProxyModelDuplicatePermissionsIdempotencyTests(TransactionTestCase):
+    available_apps = [
+        "auth_tests",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+    ]
+
+    def test_idempotent_with_existing_target_permissions(self):
+        """
+        If target proxy permissions already exist (e.g., manual creation or a
+        proxy recreated after a rename), migrating should succeed without
+        creating additional duplicates and should be safe to run multiple times.
+        """
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        # Start from a clean state for this scenario.
+        Permission.objects.all().delete()
+
+        proxy_ct = ContentType.objects.get_for_model(Proxy, for_concrete_model=False)
+        concrete_ct = ContentType.objects.get_for_model(Proxy)
+
+        # Pre-create the target (proxy) permissions as might exist in real
+        # projects due to manual workarounds or model renames.
+        Permission.objects.create(
+            content_type=proxy_ct,
+            codename="add_proxy",
+            name="Can add proxy",
+        )
+        Permission.objects.create(
+            content_type=proxy_ct,
+            codename="display_proxys",
+            name="May display proxys information",
+        )
+
+        # Also create the historical (concrete) permissions that Django's
+        # migration updates.
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="add_proxy",
+            name="Can add proxy",
+        )
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="display_proxys",
+            name="May display proxys information",
+        )
+
+        # Run the migration twice to assert idempotency and absence of
+        # IntegrityError even when target rows already exist.
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+
+        # Exactly one proxy permission per codename; no extra duplicates created.
+        for codename in ["add_proxy", "display_proxys"]:
+            self.assertEqual(
+                Permission.objects.filter(
+                    content_type=proxy_ct, codename=codename
+                ).count(),
+                1,
+            )
+
+    def test_idempotent_without_existing_target_permissions(self):
+        """
+        When only the historical (concrete) permissions exist, migrating moves
+        them to the proxy ContentType and remains safe to re-run with no-op.
+        """
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        Permission.objects.all().delete()
+
+        concrete_ct = ContentType.objects.get_for_model(Proxy)
+        proxy_ct = ContentType.objects.get_for_model(Proxy, for_concrete_model=False)
+
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="add_proxy",
+            name="Can add proxy",
+        )
+        Permission.objects.create(
+            content_type=concrete_ct,
+            codename="display_proxys",
+            name="May display proxys information",
+        )
+
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+        with connection.schema_editor() as editor:
+            update_proxy_permissions.update_proxy_model_permissions(apps, editor)
+
+        # After migration, concrete permissions are gone and proxy permissions
+        # exist exactly once per codename. Re-running should not change counts.
+        for codename in ["add_proxy", "display_proxys"]:
+            self.assertEqual(
+                Permission.objects.filter(
+                    content_type=proxy_ct, codename=codename
+                ).count(),
+                1,
+            )
+            self.assertEqual(
+                Permission.objects.filter(
+                    content_type=concrete_ct, codename=codename
+                ).count(),
+                0,
+            )
