@@ -96,3 +96,24 @@ class DurationFieldMessageFormatTests(SimpleTestCase):
             f.clean("3 1:02:03"),
             datetime.timedelta(days=3, hours=1, minutes=2, seconds=3),
         )
+
+
+class DurationFieldAdditionalFormatTests(SimpleTestCase):
+    def test_invalid_message_hours_without_seconds(self):
+        f = DurationField()
+        msg = "Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu]."
+        with self.assertRaisesMessage(ValidationError, msg):
+            f.clean("1:")  # Missing mandatory seconds.
+
+    def test_invalid_message_too_many_parts(self):
+        f = DurationField()
+        msg = "Enter a valid duration in the format [DD] [[HH:]MM:]ss[.uuuuuu]."
+        with self.assertRaisesMessage(ValidationError, msg):
+            f.clean("1:2:3:4")  # Four colon-separated parts are invalid.
+
+    def test_microseconds_parsing(self):
+        f = DurationField()
+        self.assertEqual(
+            f.clean("00:00:01.123456"),
+            datetime.timedelta(seconds=1, microseconds=123456),
+        )
