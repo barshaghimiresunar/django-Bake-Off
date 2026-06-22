@@ -42,18 +42,22 @@ def update_proxy_model_permissions(apps, schema_editor, reverse=False):
         )
         old_content_type = proxy_content_type if reverse else concrete_content_type
         new_content_type = concrete_content_type if reverse else proxy_content_type
-        try:
-            with transaction.atomic(using=alias):
-                Permission.objects.using(alias).filter(
-                    permissions_query,
-                    content_type=old_content_type,
-                ).update(content_type=new_content_type)
-        except IntegrityError:
-            old = "{}_{}".format(old_content_type.app_label, old_content_type.model)
-            new = "{}_{}".format(new_content_type.app_label, new_content_type.model)
-            sys.stdout.write(
-                style.WARNING(WARNING.format(old=old, new=new, query=permissions_query))
+        with transaction.atomic(using=alias):
+            qs = Permission.objects.using(alias).filter(
+                permissions_query,
+                content_type=old_content_type,
             )
+            # Move or deduplicate permissions safely to avoid unique constraint violations.
+            for pk, codename in qs.values_list("pk", "codename"):
+                if Permission.objects.using(alias).filter(
+                    content_type=new_content_type, codename=codename
+                ).exists():
+                    # Target permission already exists; remove the old one to avoid duplicates.
+                    Permission.objects.using(alias).filter(pk=pk).delete()
+                else:
+                    Permission.objects.using(alias).filter(pk=pk).update(
+                        content_type=new_content_type
+                    )
 
 
 def revert_proxy_model_permissions(apps, schema_editor):
