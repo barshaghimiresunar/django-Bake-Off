@@ -303,7 +303,9 @@ class HttpResponse(HttpResponseBase):
     __bytes__ = serialize
 
     @property
-    def content(self):
+if isinstance(value, memoryview):
+            content = bytes(value)
+        else:
         return b''.join(self._container)
 
     @content.setter
@@ -316,6 +318,9 @@ class HttpResponse(HttpResponseBase):
                     value.close()
                 except Exception:
                     pass
+        else:
+            if isinstance(value, memoryview):
+            content = value.tobytes()
         else:
             content = self.make_bytes(value)
         # Create a list of properly encoded bytestrings to support write().
