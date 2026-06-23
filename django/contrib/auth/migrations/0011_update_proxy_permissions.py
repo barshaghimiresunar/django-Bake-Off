@@ -26,6 +26,10 @@ def update_proxy_model_permissions(apps, schema_editor, reverse=False):
         new_content_type = concrete_content_type if reverse else proxy_content_type
         Permission.objects.filter(
             permissions_query,
+            content_type=new_content_type,
+        ).delete()
+        Permission.objects.filter(
+            permissions_query,
             content_type=old_content_type,
         ).update(content_type=new_content_type)
 
